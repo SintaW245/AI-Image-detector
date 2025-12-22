@@ -78,7 +78,6 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
     $fileType = $_FILES['image']['type'];
     $fileSize = $_FILES['image']['size'];
     
-    // Validasi tipe file
     if (!in_array($fileType, $allowedTypes)) {
         $_SESSION['message'] = 'Format file tidak didukung! Gunakan JPG, PNG, atau WEBP.';
         $_SESSION['message_type'] = 'error';
@@ -86,7 +85,6 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         exit();
     }
     
-    // Validasi ukuran file (5MB)
     if ($fileSize > 5 * 1024 * 1024) {
         $_SESSION['message'] = 'Ukuran file terlalu besar! Maksimal 5MB.';
         $_SESSION['message_type'] = 'error';
@@ -94,7 +92,6 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         exit();
     }
     
-    // Deteksi gambar
     $imageData = new CURLFile($_FILES['image']['tmp_name'], $fileType, $_FILES['image']['name']);
     $result = detectAIImage($imageData, false);
     
@@ -122,7 +119,6 @@ if (isset($_POST['image_url']) && !empty($_POST['image_url'])) {
         exit();
     }
     
-    // Deteksi gambar dari URL
     $result = detectAIImage($imageUrl, true);
     
     if (isset($result['error'])) {
