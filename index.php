@@ -388,7 +388,7 @@ unset($_SESSION['message'], $_SESSION['message_type']);
 
             <div class="navigation">
                 <a href="history.php" class="nav-link">📊 Riwayat Deteksi</a>
-                <a >ℹ️ Tentang</a>
+                <a href="about.php" class="nav-link">ℹ️ Tentang</a>
             </div>
         </div>
     </div>
