@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-class FileAuditTest extends TestCase
+class FileTest extends TestCase
 {
     private array $targets;
 
