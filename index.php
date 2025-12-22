@@ -340,7 +340,7 @@ unset($_SESSION['message'], $_SESSION['message_type']);
                 </div>
             <?php endif; ?>
 
-            <form id="uploadForm" action="" method="POST" enctype="multipart/form-data">
+            <form id="uploadForm" action="detect.php" method="POST" enctype="multipart/form-data">
                 <div class="upload-section">
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon">📁</div>

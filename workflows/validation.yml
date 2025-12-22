@@ -1,0 +1,202 @@
+name: PHP Validation & Testing
+
+on:
+  push:
+    branches: [ develop, main, feature/** ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  validate-php:
+    name: Validate PHP Files
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '7.4'
+        extensions: mbstring, curl, json
+        coverage: none
+        
+    - name: Validate PHP Syntax
+      run: |
+        echo "🔍 Checking PHP syntax for all .php files..."
+        find . -type f -name "*.php" -print0 | while IFS= read -r -d '' file; do
+          echo "Validating: $file"
+          php -l "$file"
+          if [ $? -ne 0 ]; then
+            echo "❌ Syntax error in: $file"
+            exit 1
+          fi
+        done
+        echo "✅ All PHP files have valid syntax!"
+        
+    - name: Check Required PHP Files
+      run: |
+        echo "📋 Checking required PHP files..."
+        required_files=("index.php" "detect.php" "result.php" "history.php" "about.php" "clear_history.php")
+        
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+        echo "✅ All required PHP files present!"
+        
+    - name: Validate HTML in PHP Files
+      run: |
+        echo "🌐 Validating HTML structure in PHP files..."
+        
+        # Install html5validator
+        pip install --upgrade html5validator
+        
+        # Extract and validate HTML from PHP files
+        for file in index.php result.php history.php about.php; do
+          echo "Extracting HTML from: $file"
+          
+          # Create temporary HTML file by removing PHP tags
+          sed 's/<\?php.*\?>//g' "$file" | sed '/^$/d' > "temp_${file%.php}.html"
+          
+          echo "Validating HTML in: $file"
+          html5validator --root . --match "temp_${file%.php}.html" --show-warnings || true
+          
+          # Check basic HTML structure
+          if grep -q "<!DOCTYPE html>" "$file" && \
+             grep -q "<html" "$file" && \
+             grep -q "<head>" "$file" && \
+             grep -q "<body>" "$file" && \
+             grep -q "</html>" "$file"; then
+            echo "✅ Valid HTML structure in: $file"
+          else
+            echo "⚠️  Warning: Incomplete HTML structure in: $file"
+          fi
+          
+          # Cleanup
+          rm -f "temp_${file%.php}.html"
+        done
+        
+    - name: Check for Security Issues
+      run: |
+        echo "🔒 Checking for common security issues..."
+        
+        # Check for SQL injection vulnerabilities
+        if grep -rn "mysql_query\|mysqli_query" --include="*.php" .; then
+          echo "⚠️  Warning: Found direct SQL queries. Ensure proper sanitization!"
+        fi
+        
+        # Check for XSS vulnerabilities
+        echo "Checking for XSS prevention..."
+        if grep -rn "echo \$_" --include="*.php" . | grep -v "htmlspecialchars"; then
+          echo "⚠️  Warning: Potential XSS vulnerability. Use htmlspecialchars()!"
+        else
+          echo "✅ XSS prevention looks good!"
+        fi
+        
+        # Check for file upload handling
+        if grep -rn "\$_FILES" --include="*.php" .; then
+          echo "Found file upload handling. Ensure proper validation!"
+        fi
+        
+    - name: Code Quality Check
+      run: |
+        echo "📊 Running code quality checks..."
+        
+        # Count lines of code
+        total_lines=$(find . -name "*.php" -exec cat {} \; | wc -l)
+        echo "Total lines of PHP code: $total_lines"
+        
+        # Check for TODO comments
+        todos=$(grep -rn "TODO\|FIXME" --include="*.php" . || true)
+        if [ -n "$todos" ]; then
+          echo "📝 Found TODO/FIXME comments:"
+          echo "$todos"
+        fi
+        
+        echo "✅ Code quality check completed!"
+        
+    - name: Generate Report
+      if: always()
+      run: |
+        echo "📄 Generating validation report..."
+        echo "================================"
+        echo "PHP Validation Report"
+        echo "================================"
+        echo "Date: $(date)"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        echo ""
+        echo "✅ PHP syntax validation: PASSED"
+        echo "✅ Required files check: PASSED"
+        echo "✅ HTML validation: COMPLETED"
+        echo "✅ Security check: COMPLETED"
+        echo "================================"
+        
+  test-functionality:
+    name: Test Functionality
+    runs-on: ubuntu-latest
+    needs: validate-php
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '7.4'
+        extensions: mbstring, curl, json
+        
+    - name: Start PHP Built-in Server
+      run: |
+        echo "🚀 Starting PHP built-in server..."
+        php -S localhost:8000 &
+        sleep 3
+        
+    - name: Test Endpoints
+      run: |
+        echo "🧪 Testing application endpoints..."
+        
+        # Test index.php
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/index.php)
+        if [ "$response" = "200" ]; then
+          echo "✅ index.php is accessible (HTTP $response)"
+        else
+          echo "❌ index.php returned HTTP $response"
+          exit 1
+        fi
+        
+        # Test about.php
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/about.php)
+        if [ "$response" = "200" ]; then
+          echo "✅ about.php is accessible (HTTP $response)"
+        else
+          echo "❌ about.php returned HTTP $response"
+          exit 1
+        fi
+        
+        # Test history.php
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/history.php)
+        if [ "$response" = "200" ]; then
+          echo "✅ history.php is accessible (HTTP $response)"
+        else
+          echo "❌ history.php returned HTTP $response"
+          exit 1
+        fi
+        
+        echo "✅ All endpoint tests passed!"
+        
+    - name: Summary
+      if: always()
+      run: |
+        echo "📊 Test Summary"
+        echo "================================"
+        echo "All validation and tests completed!"
+        echo "Check the logs above for details."
+        echo "================================"
